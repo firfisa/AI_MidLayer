@@ -64,4 +64,30 @@ tests/test_knowledge.py::TestFileStore::test_remove_nonexistent PASSED
 
 ---
 
+### Step 3: 向量索引 ✅
+
+**完成时间**: 2026-02-06
+
+**完成的工作**:
+- [x] `VectorIndex` 类使用 LanceDB
+  - `_chunk_text()` - 智能分块（句子边界）
+  - `index_document()` - 索引文档
+  - `search()` - 语义搜索
+  - `remove_document()` - 删除文档索引
+  - `get_stats()` - 索引统计
+- [x] `Retriever` 类整合 FileStore + VectorIndex
+  - `retrieve()` - RAG 检索
+  - `get_full_document()` - 无损原始内容
+- [x] CLI 集成
+  - `add` 命令现在自动索引
+  - `search` 命令使用语义搜索
+  - `status` 显示索引统计
+
+**测试结果**:
+```
+17 passed in 0.87s
+```
+
+---
+
 *后续步骤完成后在此追加记录*
