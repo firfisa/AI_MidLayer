@@ -74,5 +74,15 @@ class SearchResult(BaseModel):
     score: float
     doc: Document | None = None
     
+    @property
+    def file_name(self) -> str:
+        """Get the file name from chunk metadata."""
+        return self.chunk.metadata.get("file_name", "unknown")
+    
+    @property
+    def content(self) -> str:
+        """Get the chunk content."""
+        return self.chunk.content
+    
     def __str__(self) -> str:
         return f"SearchResult(score={self.score:.3f}): {self.chunk}"

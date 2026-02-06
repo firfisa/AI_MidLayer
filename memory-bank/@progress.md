@@ -165,3 +165,47 @@ LLM (DeepSeek): ✅ 成功 - Orient 分析返回正确结果
 ```
 37 passed, 2 skipped in 0.68s
 ```
+
+---
+
+## Phase 3: RAG 查询与用户体验 ✅
+
+**完成时间**: 2026-02-06
+
+### 新增模块
+
+| 文件 | 说明 |
+|------|------|
+| `rag/__init__.py` | RAGQuery, ConversationRAG |
+| `cli/main.py` | 新增 `chat`, `ask` 命令 |
+| `knowledge/models.py` | 增强 SearchResult (file_name, content 属性) |
+
+### 核心功能
+
+1. **RAG 查询流程**
+   - 检索：语义相似度搜索 top-k 文档
+   - 构建上下文：合并 chunks + 元数据
+   - LLM 生成：基于上下文回答问题
+   - 返回来源：引用相关文档
+
+2. **CLI 命令**
+   - `midlayer chat` - 交互式多轮对话
+   - `midlayer ask "问题"` - 单次查询
+   - 显示来源和 Token 使用统计
+
+### 端到端测试结果
+```
+问题: AI MidLayer 有什么功能?
+回答: 根据提供的资料，AI MidLayer 的核心功能包括：
+1. 文件解析和索引
+2. 语义搜索
+3. RAG 查询（检索增强生成）
+4. Agentic OODA 循环
+[来源: readme.md]
+Token 使用: 391 tokens
+```
+
+**测试结果**:
+```
+46 passed, 2 skipped in 0.96s
+```

@@ -8,10 +8,14 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from rich.markdown import Markdown
+from rich.prompt import Prompt
 
 from ai_midlayer.knowledge.store import FileStore
 from ai_midlayer.knowledge.index import VectorIndex
 from ai_midlayer.knowledge.retriever import Retriever
+from ai_midlayer.config import Config, get_config
+from ai_midlayer.llm import LiteLLMClient
+from ai_midlayer.rag import RAGQuery, ConversationRAG
 
 app = typer.Typer(
     name="midlayer",
@@ -57,6 +61,7 @@ def init(
     console.print("\nNext steps:")
     console.print("  1. Add files: [cyan]midlayer add <file>[/cyan]")
     console.print("  2. Search: [cyan]midlayer search <query>[/cyan]")
+    console.print("  3. Chat: [cyan]midlayer chat[/cyan]")
 
 
 @app.command()
@@ -181,6 +186,122 @@ def remove(
         console.print(f"❌ Document not found: {doc_id}", style="red")
 
 
+@app.command()
+def chat(
+    kb_path: Optional[str] = typer.Option(None, "--kb", help="Knowledge base path"),
+    single: Optional[str] = typer.Option(None, "--query", "-q", help="Single query mode"),
+):
+    """Interactive RAG chat with the knowledge base."""
+    # Load config
+    config = get_config()
+    
+    # Check if LLM is configured
+    if not config.llm.api_key:
+        console.print("[red]❌ LLM not configured.[/red]")
+        console.print("\nSet environment variables:")
+        console.print("  export MIDLAYER_LLM_PROVIDER=custom")
+        console.print("  export MIDLAYER_LLM_MODEL=deepseek-chat")
+        console.print("  export MIDLAYER_BASE_URL=https://api.deepseek.com")
+        console.print("  export MIDLAYER_API_KEY=your-api-key")
+        raise typer.Exit(1)
+    
+    # Initialize components
+    retriever = get_retriever(kb_path)
+    llm_client = LiteLLMClient(config.llm)
+    
+    # Check if knowledge base has content
+    stats = retriever.index.get_stats()
+    if stats["total_chunks"] == 0:
+        console.print("[yellow]⚠️ Knowledge base is empty.[/yellow]")
+        console.print("  Add files first: [cyan]midlayer add <file>[/cyan]")
+        raise typer.Exit(1)
+    
+    console.print(Panel(
+        f"🤖 [bold]AI MidLayer Chat[/bold]\n\n"
+        f"Model: {config.llm.model}\n"
+        f"Knowledge Base: {stats['total_chunks']} chunks from {stats['total_documents']} docs\n\n"
+        f"Type [cyan]exit[/cyan] or [cyan]quit[/cyan] to leave.",
+        border_style="green",
+    ))
+    
+    # Single query mode
+    if single:
+        rag = RAGQuery(retriever, llm_client)
+        _process_query(rag, single)
+        return
+    
+    # Interactive mode
+    conversation = ConversationRAG(retriever, llm_client)
+    
+    while True:
+        try:
+            query = Prompt.ask("\n[bold cyan]You[/bold cyan]")
+            
+            if query.lower() in ["exit", "quit", "q"]:
+                console.print("[dim]Goodbye! 👋[/dim]")
+                break
+            
+            if query.lower() == "clear":
+                conversation.clear_history()
+                console.print("[dim]History cleared.[/dim]")
+                continue
+            
+            if not query.strip():
+                continue
+            
+            # Process query
+            with console.status("[bold green]Thinking..."):
+                result = conversation.chat(query)
+            
+            # Display answer
+            console.print(f"\n[bold green]Assistant[/bold green]")
+            console.print(Markdown(result.answer))
+            
+            # Display sources
+            if result.sources:
+                sources = ", ".join(set(s.file_name for s in result.sources[:3]))
+                console.print(f"\n[dim]📚 Sources: {sources}[/dim]")
+                
+        except KeyboardInterrupt:
+            console.print("\n[dim]Interrupted. Type 'exit' to quit.[/dim]")
+        except Exception as e:
+            console.print(f"[red]Error: {e}[/red]")
+
+
+def _process_query(rag: RAGQuery, query: str):
+    """Process a single RAG query."""
+    with console.status("[bold green]Searching and generating..."):
+        result = rag.query(query)
+    
+    console.print(f"\n[bold green]Answer[/bold green]")
+    console.print(Markdown(result.answer))
+    
+    if result.sources:
+        console.print(f"\n[bold]📚 Sources:[/bold]")
+        for i, src in enumerate(result.sources[:5], 1):
+            console.print(f"  {i}. {src.file_name} (score: {src.score:.2f})")
+
+
+@app.command()
+def ask(
+    question: str = typer.Argument(..., help="Question to ask"),
+    kb_path: Optional[str] = typer.Option(None, "--kb", help="Knowledge base path"),
+):
+    """Ask a single question (non-interactive RAG query)."""
+    config = get_config()
+    
+    if not config.llm.api_key:
+        console.print("[red]❌ LLM not configured. See 'midlayer chat --help'[/red]")
+        raise typer.Exit(1)
+    
+    retriever = get_retriever(kb_path)
+    llm_client = LiteLLMClient(config.llm)
+    rag = RAGQuery(retriever, llm_client)
+    
+    _process_query(rag, question)
+
+
 if __name__ == "__main__":
     app()
+
 
