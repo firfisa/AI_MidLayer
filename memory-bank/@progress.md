@@ -91,3 +91,77 @@ tests/test_knowledge.py::TestFileStore::test_remove_nonexistent PASSED
 ---
 
 *后续步骤完成后在此追加记录*
+
+---
+
+## Phase 2: Agentic 增强 ✅
+
+**完成时间**: 2026-02-06
+
+**设计原则**: 高内聚低耦合、模块分离、可扩展性
+
+### 架构重构
+
+**新增模块**:
+
+| 文件 | 说明 |
+|------|------|
+| `agents/protocols.py` | Protocol 接口定义（AgentState, LLMProvider, Tool, AgentCallback） |
+| `agents/base.py` | BaseAgent 基类（OODA + Reflexion 循环，依赖注入，回调） |
+| `agents/parser.py` | ParserAgent 重构（实现完整 OODA 循环） |
+| `agents/structure.py` | StructureAgent 新增（文档类型识别、结构解析） |
+| `orchestrator/__init__.py` | Pipeline 编排层（顺序执行、上下文传递） |
+
+**核心特性**:
+- ✅ OODA 循环: Observe → Orient → Decide → Act
+- ✅ Reflexion: Reflect → Refine 自我修正
+- ✅ 依赖注入: LLM Provider、Tools、Callbacks 可配置
+- ✅ Protocol 模式: 结构化子类型，接口可替换
+- ✅ 文档类型识别: 自动分类（技术文档、会议记录等）
+- ✅ 结构解析: Markdown 标题、代码函数/类、文本段落
+
+**测试结果**:
+```
+24 passed in 0.88s
+```
+
+---
+
+## LLM 集成 ✅
+
+**完成时间**: 2026-02-06
+
+### 新增模块
+
+| 文件 | 说明 |
+|------|------|
+| `llm/__init__.py` | LiteLLM 适配器（多提供商支持） |
+| `config.py` | 配置管理（环境变量、配置文件） |
+| `agents/llm_agent.py` | LLMAgentMixin（LLM 增强能力） |
+
+### 支持的提供商
+- OpenAI (GPT-4, GPT-3.5)
+- Anthropic (Claude)
+- Google (Gemini)
+- Ollama (本地模型)
+- **自定义 API** (DeepSeek, Moonshot 等 OpenAI 兼容接口)
+
+### 配置方式
+```bash
+export MIDLAYER_LLM_PROVIDER="custom"
+export MIDLAYER_LLM_MODEL="deepseek-reasoner"
+export MIDLAYER_BASE_URL="https://api.deepseek.com"
+export MIDLAYER_API_KEY="your-api-key"
+```
+
+### 端到端测试结果
+```
+Phase 1 (ParserAgent): ✅ 成功 - md 文件，质量分数 1.0
+Phase 2 (StructureAgent): ✅ 成功 - technical_doc, 4 章节
+LLM (DeepSeek): ✅ 成功 - Orient 分析返回正确结果
+```
+
+**测试结果**:
+```
+37 passed, 2 skipped in 0.68s
+```
