@@ -92,16 +92,16 @@
 
 ### ⭐⭐⭐ 高优先级
 
-- [ ] **CLI 混合搜索集成**
-  - 让 `midlayer search` 使用 HybridRetriever
-  - 让 `midlayer chat` 使用混合搜索 + 重排序
-  - 显示搜索来源 (BM25/Vector/Hybrid)
-  - 显示融合分数详情
+- [x] **CLI 混合搜索集成** ✅ 82 tests
+  - `midlayer search --hybrid/--no-hybrid`
+  - `midlayer add` 双索引 (Vector + BM25)
+  - 搜索来源颜色区分显示
+  - `--verbose` 显示 RRF 分数
 
-- [ ] **端到端混合搜索测试**
+- [x] **端到端混合搜索测试** ✅ 7 tests
   - 真实文档的混合搜索验证
-  - BM25 vs Vector vs Hybrid 效果对比
-  - 性能基准测试
+  - BM25 vs Vector vs Hybrid 对比
+  - 中文内容索引测试
 
 ### ⭐⭐ 中优先级
 
