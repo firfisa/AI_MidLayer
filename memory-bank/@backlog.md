@@ -86,16 +86,54 @@
 
 ---
 
-## Phase 3: RAG 查询与用户体验
+## QMD 技术集成增强 (后续完善)
 
-### 🎯 核心功能
-- [ ] RAG 查询流程
-  - 检索 → 重排 → 生成
-  - 上下文压缩
-  - 多轮对话
-- [ ] `midlayer chat` 命令
-  - 交互式问答
-  - 历史记录
+> 借鉴 [QMD](https://github.com/tobi/qmd) 项目的高级技术
+
+### ⭐⭐⭐ 高优先级
+
+- [ ] **CLI 混合搜索集成**
+  - 让 `midlayer search` 使用 HybridRetriever
+  - 让 `midlayer chat` 使用混合搜索 + 重排序
+  - 显示搜索来源 (BM25/Vector/Hybrid)
+  - 显示融合分数详情
+
+- [ ] **端到端混合搜索测试**
+  - 真实文档的混合搜索验证
+  - BM25 vs Vector vs Hybrid 效果对比
+  - 性能基准测试
+
+### ⭐⭐ 中优先级
+
+- [ ] **异步并行搜索**
+  - BM25 和 Vector 并行执行
+  - asyncio 优化检索性能
+
+- [ ] **重排序模型选择**
+  - 支持多种重排序策略
+  - 无 LLM 时使用 Cross-encoder 本地模型
+  - 配置化选择重排序方式
+
+### ⭐ 低优先级 (框架完成后)
+
+- [ ] **模型微调接口**
+  - 预留本地小模型微调能力
+  - Query Expansion 模型训练数据生成
+  - 支持 GGUF 格式模型加载
+  - 参考 QMD 的 `finetune/` 目录
+
+- [ ] **MCP 协议支持**
+  - Model Context Protocol 集成
+  - 让 Claude/Cursor 等 AI 工具调用 MidLayer
+
+- [ ] **评估驱动开发**
+  - 搜索质量自动评估
+  - 召回率/准确率测试集
+  - 参考 QMD 的 `test/eval-harness.ts`
+
+---
+
+## Phase 3 增强: RAG 用户体验
 
 ### 📱 用户体验
 - [ ] 进度条和状态显示

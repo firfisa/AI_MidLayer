@@ -257,3 +257,31 @@ Top 11+:  40% RRF + 60% Rerank (信任语义)
 ```
 59 passed, 2 skipped in 0.62s
 ```
+
+### Phase 3: LLM 重排序
+
+| 模块 | 说明 |
+|------|------|
+| `rag/reranker.py` | LLMReranker, ScoreBasedReranker, NoOpReranker |
+
+**核心功能**:
+- Cross-encoder 式 LLM 打分
+- 位置感知混合 (position_aware_blend)
+- 关键词密度规则打分
+- 优雅的 LLM 失败降级
+
+### Phase 4: 查询扩展 + HyDE
+
+| 模块 | 说明 |
+|------|------|
+| `rag/expansion.py` | LLMQueryExpander, SimpleQueryExpander, NoOpExpander |
+
+**扩展类型**:
+- `lex`: 关键词同义词 (用于 BM25)
+- `vec`: 语义句子 (用于 Vector)
+- `hyde`: 假设文档 (HyDE 技术)
+
+**测试结果**:
+```
+75 passed, 2 skipped in 0.75s
+```
