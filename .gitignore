@@ -5,3 +5,22 @@
 .idea/
 __pycache__/
 .venv/
+reference/
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+*.log
+*.egg-info/
+dist/
+build/
+.coverage
+htmlcov/
+.mypy_cache/
+.vscode/
+
+# Documentation (Vibe Coding)
+/*.md
+!/README.md
