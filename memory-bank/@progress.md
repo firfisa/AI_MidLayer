@@ -209,3 +209,51 @@ Token 使用: 391 tokens
 ```
 46 passed, 2 skipped in 0.96s
 ```
+
+---
+
+## QMD 技术集成：混合搜索增强 ✅
+
+**完成时间**: 2026-02-07
+
+### 借鉴 QMD 的核心技术
+
+| 技术 | 说明 | 实现文件 |
+|------|------|---------|
+| **BM25 索引** | SQLite FTS5 全文检索 | `knowledge/bm25.py` |
+| **RRF 融合** | 倒数排名融合，原查询权重 ×2 | `rag/fusion.py` |
+| **位置感知混合** | 动态调整 RRF/Rerank 权重 | `rag/fusion.py` |
+| **强信号检测** | 跳过扩展的优化 | `rag/fusion.py` |
+| **混合检索器** | 结合 Vector + BM25 | `knowledge/hybrid.py` |
+
+### 新增模块
+
+```
+src/ai_midlayer/
+├── knowledge/
+│   ├── bm25.py          # BM25 索引 (SQLite FTS5)
+│   └── hybrid.py        # HybridRetriever
+└── rag/
+    └── fusion.py        # RRF 融合算法
+```
+
+### 核心算法
+
+**RRF 融合公式**:
+```python
+score = weight / (k + rank + 1)
+# k=60, 原查询权重 x2
+# 榜首奖励: +0.05 (第1名), +0.02 (第2-3名)
+```
+
+**位置感知混合**:
+```
+Top 1-3:  75% RRF + 25% Rerank (信任精确匹配)
+Top 4-10: 60% RRF + 40% Rerank
+Top 11+:  40% RRF + 60% Rerank (信任语义)
+```
+
+**测试结果**:
+```
+59 passed, 2 skipped in 0.62s
+```
