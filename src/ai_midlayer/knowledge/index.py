@@ -3,16 +3,20 @@
 Implements the vector_store component from the system architecture:
 - project_kb/index/vector_store/
 
-Uses LanceDB for embedded vector storage with hybrid search.
+Uses LanceDB for embedded vector storage with semantic search.
+Supports custom embedding models via EmbeddingClient.
 """
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
+import os
 
 import lancedb
+import pyarrow as pa
 from pydantic import BaseModel, Field
 
 from ai_midlayer.knowledge.models import Chunk, Document, SearchResult
+from ai_midlayer.knowledge.embedding import EmbeddingClient
 
 
 class ChunkEmbedding(BaseModel):
@@ -24,7 +28,6 @@ class ChunkEmbedding(BaseModel):
     start_idx: int
     end_idx: int
     metadata: dict[str, Any] = Field(default_factory=dict)
-    # LanceDB will auto-generate embeddings if we use the embedding function
 
 
 class VectorIndex:
@@ -32,8 +35,8 @@ class VectorIndex:
     
     Provides:
     - Document chunking and indexing
-    - Semantic similarity search
-    - Hybrid search (vector + keyword) - future
+    - Semantic similarity search with custom embeddings
+    - Support for OpenAI-compatible embedding APIs
     
     Architecture alignment: L2 Knowledge Layer → index/vector_store
     """
@@ -42,21 +45,44 @@ class VectorIndex:
     CHUNK_SIZE = 500  # characters per chunk
     CHUNK_OVERLAP = 100  # overlap between chunks
     
-    def __init__(self, kb_path: str | Path, embedding_model: str = "default"):
+    def __init__(
+        self,
+        kb_path: str | Path,
+        embedding_model: Optional[str] = None,
+        embedding_api_key: Optional[str] = None,
+        embedding_base_url: Optional[str] = None,
+        embedding_dimensions: int = 1536,
+    ):
         """Initialize the vector index.
         
         Args:
             kb_path: Path to the knowledge base directory.
-            embedding_model: Embedding model to use (future: configurable).
+            embedding_model: Embedding model name (default from env or "all-MiniLM-L6-v2")
+            embedding_api_key: API key for embedding service (optional)
+            embedding_base_url: Base URL for embedding API (optional)
+            embedding_dimensions: Embedding vector dimensions
         """
         self.kb_path = Path(kb_path)
         self.index_dir = self.kb_path / "index" / "vector_store"
         self.index_dir.mkdir(parents=True, exist_ok=True)
         
+        # Initialize embedding client
+        self._embedding = EmbeddingClient(
+            model=embedding_model or os.getenv("MIDLAYER_EMBEDDING_MODEL", "all-MiniLM-L6-v2"),
+            api_key=embedding_api_key or os.getenv("MIDLAYER_EMBEDDING_API_KEY"),
+            base_url=embedding_base_url or os.getenv("MIDLAYER_EMBEDDING_BASE_URL"),
+            dimensions=embedding_dimensions,
+        )
+        
         # Initialize LanceDB
         self.db = lancedb.connect(str(self.index_dir))
         self._table = None
-        self._embedding_model = embedding_model
+        self._embedding_dimensions = embedding_dimensions
+    
+    @property
+    def embedding_client(self) -> EmbeddingClient:
+        """Get the embedding client."""
+        return self._embedding
     
     @property
     def table(self):
@@ -129,9 +155,14 @@ class VectorIndex:
         if not chunks:
             return 0
         
-        # Prepare data for LanceDB
-        data = [
-            {
+        # Generate embeddings for all chunks
+        chunk_texts = [c.content for c in chunks]
+        embeddings = self._embedding.embed(chunk_texts)
+        
+        # Prepare data for LanceDB with embeddings
+        data = []
+        for chunk, embedding in zip(chunks, embeddings):
+            data.append({
                 "id": chunk.id,
                 "doc_id": chunk.doc_id,
                 "content": chunk.content,
@@ -139,9 +170,8 @@ class VectorIndex:
                 "end_idx": chunk.end_idx,
                 "file_name": doc.file_name,
                 "file_type": doc.file_type,
-            }
-            for chunk in chunks
-        ]
+                "vector": embedding,  # Store embedding
+            })
         
         # Insert into LanceDB
         if self.table is None:
@@ -179,17 +209,26 @@ class VectorIndex:
             return []
         
         try:
-            # LanceDB search with FTS (Full Text Search)
-            # Note: For production, we'd use embedding-based search
-            # Current implementation uses FTS as a baseline
+            # Generate query embedding
+            query_embedding = self._embedding.embed_single(query)
+            
+            # Vector search with LanceDB
             results = (
-                self.table.search(query)
+                self.table.search(query_embedding)
                 .limit(top_k)
                 .to_list()
             )
-        except Exception:
-            # Fallback to simple scan if search fails
-            results = self.table.to_pandas().head(top_k).to_dict('records')
+        except Exception as e:
+            # Fallback to FTS if vector search fails
+            try:
+                results = (
+                    self.table.search(query)
+                    .limit(top_k)
+                    .to_list()
+                )
+            except Exception:
+                # Final fallback
+                results = self.table.to_pandas().head(top_k).to_dict('records')
         
         # Convert to SearchResult objects
         search_results = []
@@ -206,8 +245,13 @@ class VectorIndex:
                 }
             )
             
-            # Score: higher is better (simple ranking by position)
-            score = 1.0 - (i / max(len(results), 1))
+            # Use _distance from LanceDB (lower = more similar)
+            # Convert to similarity score (higher = better)
+            distance = row.get("_distance", i)
+            if isinstance(distance, (int, float)):
+                score = 1.0 / (1.0 + distance)
+            else:
+                score = 1.0 - (i / max(len(results), 1))
             
             search_results.append(SearchResult(
                 chunk=chunk,
@@ -247,13 +291,25 @@ class VectorIndex:
             Dictionary with index statistics.
         """
         if self.table is None:
-            return {"total_chunks": 0, "total_documents": 0}
+            return {
+                "total_chunks": 0,
+                "total_documents": 0,
+                "embedding_model": self._embedding.model,
+                "use_api": self._embedding.use_api,
+            }
         
         try:
             df = self.table.to_pandas()
             return {
                 "total_chunks": len(df),
                 "total_documents": df["doc_id"].nunique(),
+                "embedding_model": self._embedding.model,
+                "use_api": self._embedding.use_api,
             }
         except Exception:
-            return {"total_chunks": 0, "total_documents": 0}
+            return {
+                "total_chunks": 0,
+                "total_documents": 0,
+                "embedding_model": self._embedding.model,
+                "use_api": self._embedding.use_api,
+            }
