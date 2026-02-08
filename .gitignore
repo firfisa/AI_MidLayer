@@ -7,6 +7,8 @@ __pycache__/
 .venv/
 reference/
 midlayer_dogfood_kb/
+test_resource/
+.midlayer_demo/
 
 # Python
 *.pyc

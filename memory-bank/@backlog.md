@@ -6,32 +6,31 @@
 
 ## Phase 1 增强 (后续完善)
 
-### 📄 文件解析增强
-- [ ] 集成 Unstructured.io 完整解析
-  - PDF 高质量解析
-  - DOCX/PPTX 支持
-  - 图片 OCR
-  - 表格识别
-- [ ] 多模态内容处理
+### 📄 文件解析增强 ✅ 100 tests
+- [x] 集成 DeepSeek-OCR 解析
+  - PDF 高质量解析 (扫描件自动检测)
+  - 图片 OCR (`knowledge/ocr.py`)
+  - 文档转 Markdown
+- [x] 智能分块策略 (`knowledge/chunker.py`)
+  - Markdown 标题层级感知
+  - 代码函数/类感知
+  - 语义段落检测
+- [ ] 多模态内容处理 (后续)
   - 图片描述生成
-  - 代码语法高亮
+  - DOCX/PPTX 支持
 
-### 🔍 向量索引增强
-- [ ] 集成真正的 Embedding 模型
-  - 支持 OpenAI / BGE / 本地模型
-  - 配置化选择
-- [ ] 混合检索
+### 🔍 向量索引增强 ✅
+- [x] 集成真正的 Embedding 模型
+  - 支持 OpenAI / 自定义 API / 本地模型
+  - 配置化选择 (`knowledge/embedding.py`)
+- [x] 混合检索
   - 关键词索引 (BM25)
-  - 向量相似度 + 关键词融合排序
-- [ ] 分块策略优化
-  - 按语义段落分块
-  - 标题层级感知
+  - 向量相似度 + RRF 融合排序
 
-### 🖥️ CLI 增强
-- [ ] `midlayer chat` - 交互式对话
-- [ ] `midlayer export` - 导出标准化 Context
-- [ ] 进度条显示
-- [ ] 彩色日志级别
+### 🖥️ CLI 增强 ✅
+- [x] `midlayer chat` - 交互式对话
+- [ ] `midlayer export` - 导出标准化 Context (后续)
+- [x] 进度条/彩色日志 (Rich)
 
 ---
 
