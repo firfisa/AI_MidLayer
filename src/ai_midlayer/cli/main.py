@@ -286,12 +286,34 @@ def chat(
         _process_query(rag, single)
         return
     
-    # Interactive mode
+    # Interactive mode with proper Unicode support
+    # Use prompt_toolkit for better CJK character handling
+    try:
+        from prompt_toolkit import prompt as pt_prompt
+        from prompt_toolkit.styles import Style
+        
+        pt_style = Style.from_dict({
+            '': '#00ff00 bold',  # Default style
+        })
+        
+        def get_input():
+            return pt_prompt("You> ", style=pt_style)
+        
+        use_prompt_toolkit = True
+    except ImportError:
+        # Fallback to Rich.Prompt if prompt_toolkit not available
+        use_prompt_toolkit = False
+        console.print("[dim]Tip: Install prompt_toolkit for better Chinese input: pip install prompt_toolkit[/dim]")
+    
     conversation = ConversationRAG(retriever, llm_client)
     
     while True:
         try:
-            query = Prompt.ask("\n[bold cyan]You[/bold cyan]")
+            if use_prompt_toolkit:
+                console.print()  # Empty line before prompt
+                query = get_input()
+            else:
+                query = Prompt.ask("\n[bold cyan]You[/bold cyan]")
             
             if query.lower() in ["exit", "quit", "q"]:
                 console.print("[dim]Goodbye! 👋[/dim]")
@@ -320,6 +342,9 @@ def chat(
                 
         except KeyboardInterrupt:
             console.print("\n[dim]Interrupted. Type 'exit' to quit.[/dim]")
+        except EOFError:
+            console.print("\n[dim]Goodbye! 👋[/dim]")
+            break
         except Exception as e:
             console.print(f"[red]Error: {e}[/red]")
 

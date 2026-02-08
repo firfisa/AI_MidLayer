@@ -13,8 +13,10 @@ from ai_midlayer.knowledge.models import Document, Chunk
 class TestOCRClient:
     """Tests for OCRClient."""
     
-    def test_init_without_key_raises(self):
+    def test_init_without_key_raises(self, monkeypatch):
         """Should raise error without API key."""
+        # Clear any existing env vars
+        monkeypatch.delenv("MIDLAYER_OCR_API_KEY", raising=False)
         with pytest.raises(ValueError, match="OCR API key"):
             OCRClient()
     
